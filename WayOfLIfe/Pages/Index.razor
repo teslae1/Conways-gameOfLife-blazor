@@ -1,0 +1,266 @@
+﻿@page "/"
+@using System.Timers
+
+
+<div class="text-center">
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <p>
+                    <h1 style="color:white;">
+                        Conway's game of life follow these rules ->
+                    </h1>
+                    <br />
+                    <br />
+                    <h2 style="color:ghostwhite;">
+                        "If experimenters have free will, then so do elementary particles"
+                    </h2>
+                <p>
+                    <h3 style="color:navajowhite;">
+                        -John Horton Conway
+                    </h3>
+                </p>
+                </p>
+            </div>
+            <div class="col">
+                <ul style="color:white;">
+                    <h5>
+                        <h5>Rules per cell:</h5>
+                        <li>Any live cell with fewer than two live neighbours dies, as if by underpopulation</li>
+                        <li>Any live cell with two or three live neighbours lives on to the next generation</li>
+                        <li>Any live cell with more than three live neighbours dies, as if by overpopulation</li>
+                        <li>Any dead cell with exactly three live neighbours becomes alive, as if by reproduction</li>
+                    </h5>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="container">
+    <div class="text-center">
+        <button class="btn btn-dark @displayStartButton i-am-centered" @onclick="StartGame"> Start Game Of Life </button>
+        <button class="btn btn-lg btn-dark @pauseButtonClass i-am-centered" @onclick="PauseGame">
+            <i class="fa fa-pause fa-lg" style="color:white;"></i>
+        </button>
+        <button class="btn btn-lg btn-dark @playButtonClass  i-am-centered" @onclick="PauseGame">
+            <i class="fa fa-play fa-lg" style="color:white;"></i>
+        </button>
+        <br />
+    </div>
+
+    @for (int i = 0; i < solution; i++)
+    {
+        <div class="row">
+            <div class="col-2"></div>
+            @for (int j = 0; j < solution; j++)
+            {
+                <div class="square @arr[i][j]"></div>
+            }
+            <div class="col-2"></div>
+        </div>
+    }
+</div>
+
+
+
+@code{
+    string displayStartButton = "show ";
+    string pauseButtonClass = "hide";
+    string playButtonClass = "hide";
+
+    static int solution = 100;
+    int timerSpeed = 100;
+
+    string[][] arr = CreateRandomArr(solution);
+    static string[][] CreateRandomArr(int solution)
+    {
+        var arr = new string[solution][];
+        for (int i = 0; i < solution; i++)
+        {
+            var row = new List<string>();
+            for (int j = 0; j < solution; j++)
+            {
+                bool binary = Convert.ToBoolean(new Random().Next(0, 2));
+                if (binary)
+                    row.Add("visible");
+                else
+                    row.Add("invisible");
+            }
+            arr[i] = row.ToArray();
+        }
+
+        return arr;
+    }
+
+    string[][] arrDummy = CreateRandomArr(solution);
+    void EvolveArr(string[][] arr)
+    {
+
+        //get updates
+        for (int i = 0; i < arr.Length; i++)
+            for (int j = 0; j < arr.Length; j++)
+                if (ShouldChangeCell(arr, i, j))
+                    arrDummy[i][j] = arr[i][j] == "visible" ? "invisible" : "visible";
+
+        //install updates
+        for (int i = 0; i < arr.Length; i++)
+            for (int j = 0; j < arr[i].Length; j++)
+                arr[i][j] = arrDummy[i][j];
+    }
+
+    //cell checks
+    bool ShouldChangeCell(string[][] arr, int row, int col)
+    {
+        int neighbours = GetAdjacentsAlive(arr, row, col);
+
+        bool change = false;
+        if (CellIsAlive(arr[row][col]))
+        {
+            if (neighbours < 2 ||
+                neighbours > 3)
+                change = true;
+        }
+        else
+        {
+            //cell is dead
+            if (neighbours == 3)
+                change = true;
+        }
+
+        return change;
+    }
+    bool CellIsAlive(string s)
+    {
+        return s == "visible";
+    }
+    int GetAdjacentsAlive(string[][] arr, int row, int col)
+    {
+        int alive = 0;
+
+
+        bool checkTop = true;
+        bool checkBottom = true;
+        bool checkRight = true;
+        bool checkLeft = true;
+
+
+        if (row == 0)
+            checkTop = false;
+        else if (row == arr.Length - 1)
+            checkBottom = false;
+        if (col == 0)
+            checkLeft = false;
+        else if (col == arr.Length - 1)
+            checkRight = false;
+
+        //top variants
+        if (checkTop)
+        {
+            int topRow = row - 1;
+            //check straight above
+            if (CellIsAlive(arr[topRow][col]))
+                alive++;
+            //check if top right
+            if (checkRight)
+                if (CellIsAlive(arr[topRow][col + 1]))
+                    alive++;
+            //check if top left
+            if (checkLeft)
+                if (CellIsAlive(arr[topRow][col - 1]))
+                    alive++;
+        }
+
+        //middle variants
+        //check right
+        if (checkRight)
+            if (CellIsAlive(arr[row][col + 1]))
+                alive++;
+        //check left
+        if (checkLeft)
+            if (CellIsAlive(arr[row][col - 1]))
+                alive++;
+
+        //bottom variants
+        if (checkBottom)
+        {
+            int bottomRow = row + 1;
+            //check straight below
+            if (CellIsAlive(arr[bottomRow][col]))
+                alive++;
+            //check bottom right
+            if (checkRight)
+                if (CellIsAlive(arr[bottomRow][col + 1]))
+                    alive++;
+            //check bottom left
+            if (checkLeft)
+                if (CellIsAlive(arr[bottomRow][col - 1]))
+                    alive++;
+        }
+
+        return alive;
+    }
+
+    //init stop start
+    Timer timer;
+    void StartGame()
+    {
+        timer = new Timer();
+        timer.Interval = timerSpeed;
+        //timer.Elapsed += OnTimerEvent;
+        timer.Elapsed += OnTimerEvent;
+        timer.Start();
+
+        //hide button
+        displayStartButton = "hide";
+        pauseButtonClass = "show";
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+        });
+    }
+    void OnTimerEvent(object sender, ElapsedEventArgs e)
+    {
+        EvolveArr(arr);
+
+        //update UI
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+        });
+    }
+
+    bool shouldPause = true;
+    void PauseGame()
+    {
+        if (shouldPause)
+        {
+            pauseButtonClass = "hide";
+            playButtonClass = "show";
+            timer.Stop();
+        }
+        else
+        {
+            pauseButtonClass = "show";
+            playButtonClass = "hide";
+            timer.Start();
+        }
+
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+        });
+
+        shouldPause = !shouldPause;
+    }
+
+
+
+
+
+}
+
+
+
+
